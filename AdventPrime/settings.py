@@ -98,6 +98,7 @@ DATABASES = {
         'PORT': os.getenv("DATABASE_PORT_NUMBER"),
         'OPTIONS': {
             'driver': os.getenv("DATABASE_DRIVER"),
+            'timeout': os.getenv("DATABASE_TIMEOUT"),
         },
     }
 }

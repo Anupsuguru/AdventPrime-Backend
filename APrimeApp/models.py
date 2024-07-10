@@ -1,6 +1,8 @@
+import datetime
 import uuid
 import json
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 class BaseModel(models.Model):
@@ -33,9 +35,21 @@ class Workshop(BaseModel):
     conducted_by = models.CharField(max_length=255)
     conducted_by_department_id = models.ForeignKey(Department, on_delete=models.CASCADE)
     workshop_date = models.DateField()
+    workshop_start_time = models.TimeField(default=datetime.time(hour=11, minute=0, second=0))
+    workshop_end_time = models.TimeField(default=datetime.time(hour=12, minute=0, second=0))
     workshop_location = models.CharField(max_length=255)
     resource = models.TextField(blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
+
+    def clean(self):
+        # Ensure that workshop_end_time is greater than workshop_start_time
+        if self.workshop_end_time <= self.workshop_start_time:
+            raise ValidationError('End time must be after start time.')
+
+    def save(self, *args, **kwargs):
+        # Call the clean method to enforce validation rules
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.workshop_name
