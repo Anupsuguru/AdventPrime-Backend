@@ -4,3 +4,6 @@ Accessing Azure Database Documentation :- https://learn.microsoft.com/en-us/samp
 
 Backend Dependencies Installation
 1. pip install python-dotenv
+2. pip install pyodbc
+3. pip install mssql-django
+4. pip install requests

@@ -62,6 +62,9 @@ class Student(BaseModel):
     course_registered = models.CharField(max_length=255)
     last_login = models.DateTimeField()
     no_of_workshop_attended = models.IntegerField()
+    no_of_workshop_waitlisted = models.IntegerField(default=0)
+    no_of_workshop_scheduled = models.IntegerField(default=0)
+    student_email = models.EmailField(max_length=255, null=True, blank=True)
 
     def get_preferences(self):
         return json.loads(self.preferences)
