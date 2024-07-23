@@ -13,6 +13,7 @@ def index(request):
     try:
         # Extract student email from headers
         student_email_id = request.headers.get('studentEmail')
+        # student_email_id = request.user_principal_name
 
         # Extract Student Details from Student Model
         studentObj = Student.objects.get(student_email=student_email_id)
@@ -85,6 +86,7 @@ def get_all_categories(request):
 @require_http_methods(["GET", "POST"])
 def student_preferences(request):
     student_email_id = request.headers.get('studentEmail')
+    # student_email_id = request.user_principal_name
 
     if student_email_id is None:
         return JsonResponse({'message': 'studentEmail is required'}, status=400)
