@@ -179,3 +179,38 @@ def get_workshop_details(request, workshop_id):
 
     except Exception as e:
         return JsonResponse({'message': str(e)}, status=500)
+
+
+@require_http_methods(['GET'])
+def get_all_workshops(request):
+    try:
+        # Fetch the workshop object by ID
+        workshop = Workshop.objects.all()
+        workshop_details: list[dict] = list()
+
+        for workshop in workshop:
+            workshop_details.append({
+                'id': str(workshop.id),
+                'workshop_name': workshop.workshop_name,
+                'conducted_by': workshop.conducted_by,
+                'workshop_date': workshop.workshop_date.isoformat(),
+                'workshop_start_time': workshop.workshop_start_time.isoformat(),
+                'workshop_end_time': workshop.workshop_end_time.isoformat(),
+                'workshop_location': workshop.workshop_location,
+                'resource': workshop.resource,
+                'category': workshop.category.category_name,
+                'conducted_by_department': workshop.conducted_by_department_id.department_name,
+                'description': workshop.description,
+            })
+        # Serialize the workshop object
+
+        return JsonResponse({
+            'message': 'Success',
+            'content': workshop_details
+        }, status=200)
+
+    except Workshop.DoesNotExist:
+        return JsonResponse({'message': 'Workshop not found'}, status=404)
+
+    except Exception as e:
+        return JsonResponse({'message': str(e)}, status=500)

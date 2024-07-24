@@ -36,6 +36,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,9 +44,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'APrimeApp.apps.AprimeappConfig',
+
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -56,6 +59,32 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'AdventPrime.urls'
+
+CORS_ORIGIN_ALLOW_ALL = True
+
+CORS_ALLOW_METHODS = (
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+)
+
+CORS_ALLOW_HEADERS = (
+    "accept",
+    "authorization",
+    "content-type",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "studentEmail"
+)
+
+# # Or to allow specific origins
+# CORS_ORIGIN_ALLOW_ALL = False
+# CORS_ORIGIN_WHITELIST = (
+#     'http://localhost:8000',)
 
 TEMPLATES = [
     {

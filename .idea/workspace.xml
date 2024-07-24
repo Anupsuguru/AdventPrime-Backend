@@ -5,7 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="73fedf8c-5c88-415d-bc62-3e8a6aad7823" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/AdventPrime.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/AdventPrime.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/APrimeApp/urls_without_token_val.py" beforeDir="false" afterPath="$PROJECT_DIR$/APrimeApp/urls_without_token_val.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/APrimeApp/views_without_token_val.py" beforeDir="false" afterPath="$PROJECT_DIR$/APrimeApp/views_without_token_val.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/AdventPrime/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/AdventPrime/settings.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,7 +37,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.pycharm.django.structure.promotion.once.per.project": "true",
     "git-widget-placeholder": "dev",
-    "last_opened_file_path": "C:/University of Windsor/AdventPrime/Back-end/AdventPrime/.venv",
+    "last_opened_file_path": "C:/University of Windsor/Internship Project/AdventPrime-Backend/env",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
