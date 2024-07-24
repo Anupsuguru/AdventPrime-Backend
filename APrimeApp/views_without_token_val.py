@@ -344,3 +344,4 @@ def upcoming_registered_workshops(request):
 
     except Exception as e:
         return JsonResponse({'message': str(e)}, status=500)
+
