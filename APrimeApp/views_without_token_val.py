@@ -102,6 +102,7 @@ def student_preferences(request):
                 for pref in student_preferences:
                     category_id = pref.get('id')
                     category_name = pref.get('category_name')
+                    color_code = pref.get('color_code', '')
                     if category_id is None or category_name is None:
                         return JsonResponse({'message': 'Each preference must contain id and category_name'},
                                             status=400)
@@ -114,7 +115,8 @@ def student_preferences(request):
 
                     preferences_list.append({
                         'id': category_id,
-                        'category_name': category_name
+                        'category_name': category_name,
+                        'color_code': color_code
                     })
 
                 studentObj.set_data(preferences_list)
