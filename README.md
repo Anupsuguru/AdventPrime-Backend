@@ -7,3 +7,4 @@ Backend Dependencies Installation
 2. pip install pyodbc
 3. pip install mssql-django
 4. pip install requests
+5. pip install django-cors-headers

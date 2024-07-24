@@ -41,6 +41,7 @@ class Workshop(BaseModel):
     resource = models.TextField(blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     description = models.TextField(default="", blank=True)
+    total_seats = models.IntegerField(default=40)
 
     def clean(self):
         # Ensure that workshop_end_time is greater than workshop_start_time

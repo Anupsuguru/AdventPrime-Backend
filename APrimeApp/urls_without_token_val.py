@@ -7,5 +7,7 @@ urlpatterns = [
     path('categories', get_all_categories, name='categories'),
     path('workshop/<str:workshop_id>/', get_workshop_details, name='get_workshop_details'),
     path('workshop', get_workshop_details, name='get_workshop_details'),
-    path('workshops/', get_all_workshops, name='get_all_workshops')
+    path('workshops/', get_all_workshops, name='get_all_workshops'),
+    path('register/', register_for_workshop, name='register_for_workshop'),
+    path('upcoming_workshops/', upcoming_registered_workshops, name='upcoming_registered_workshops')
 ]
