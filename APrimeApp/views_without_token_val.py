@@ -5,6 +5,7 @@ from .models import *
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import transaction
 
 
 def index(request):
@@ -238,46 +239,49 @@ def register_for_workshop(request):
         student = get_object_or_404(Student, student_email=student_email_id)
         workshop = get_object_or_404(Workshop, id=workshop_id)
 
-        # Fetch or create the registration object
-        registration, created = Registration.objects.get_or_create(
-            workshop=workshop,
-            defaults={
-                'waitlist': json.dumps([]),
-                'confirmed_registration': json.dumps([]),
-                'total_seats': workshop.total_seats,  # Use actual workshop capacity
-                'seats_filled': 0,
-                'seats_available': workshop.total_seats  # Initial seats available should match total seats
-            }
-        )
+        # Start a transaction to lock the Registration row exclusively
+        with transaction.atomic():
+            # Fetch or create the registration object with locking
+            registration, created = Registration.objects.select_for_update().get_or_create(
+                workshop=workshop,
+                defaults={
+                    'waitlist': json.dumps([]),
+                    'confirmed_registration': json.dumps([]),
+                    'total_seats': workshop.total_seats,  # Use actual workshop capacity
+                    'seats_filled': 0,
+                    'seats_available': workshop.total_seats  # Initial seats available should match total seats
+                }
+            )
 
-        if status == 'confirmed':
-            confirmed_list = registration.get_confirmed_registration()
-            if student_email_id in confirmed_list:
-                return JsonResponse({'message': 'Already registered'}, status=400)
-            if registration.seats_available <= 0:
-                return JsonResponse({'message': 'No seats available'}, status=400)
-            confirmed_list.append(student_email_id)
-            registration.set_confirmed_registration(confirmed_list)
-            registration.seats_filled += 1
-            registration.seats_available -= 1
+            if status == 'confirmed':
+                confirmed_list = registration.get_confirmed_registration()
+                if student_email_id in confirmed_list:
+                    return JsonResponse({'message': 'Already registered'}, status=400)
+                if registration.seats_available <= 0:
+                    return JsonResponse({'message': 'No seats available'}, status=400)
+                confirmed_list.append(student_email_id)
+                registration.set_confirmed_registration(confirmed_list)
+                registration.seats_filled += 1
+                registration.seats_available -= 1
 
-            # Update Student table
-            student.no_of_workshop_scheduled += 1
+                # Update Student table
+                student.no_of_workshop_scheduled += 1
+
+            elif status == 'waitlisted':
+                waitlist = registration.get_waitlist()
+                if student_email_id in waitlist:
+                    return JsonResponse({'message': 'Already waitlisted'}, status=400)
+                waitlist.append(student_email_id)
+                registration.set_waitlist(waitlist)
+                student.no_of_workshop_waitlisted += 1
+
+            else:
+                return JsonResponse({'message': 'Invalid status'}, status=400)
+
+            # Save the registration and student within the transaction
+            registration.save()
             student.save()
 
-        elif status == 'waitlisted':
-            waitlist = registration.get_waitlist()
-            if student_email_id in waitlist:
-                return JsonResponse({'message': 'Already waitlisted'}, status=400)
-            waitlist.append(student_email_id)
-            registration.set_waitlist(waitlist)
-            student.no_of_workshop_waitlisted += 1
-            student.save()
-
-        else:
-            return JsonResponse({'message': 'Invalid status'}, status=400)
-
-        registration.save()
         return JsonResponse({'message': 'Registered successfully'}, status=200)
 
     except json.JSONDecodeError:
@@ -286,8 +290,6 @@ def register_for_workshop(request):
         return JsonResponse({'message': 'Student not found'}, status=404)
     except Workshop.DoesNotExist:
         return JsonResponse({'message': 'Workshop not found'}, status=404)
-    except Registration.DoesNotExist:
-        return JsonResponse({'message': 'Registration not found'}, status=404)
     except Exception as e:
         return JsonResponse({'message': str(e)}, status=500)
 
