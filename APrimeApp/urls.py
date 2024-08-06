@@ -13,4 +13,6 @@ urlpatterns = [
     path('register', register_for_workshop, name='register_for_workshop'),
     path("cancelworkshop",cancelworkshop, name='cancelworkshop'),
     path("attendance",attendance, name='attendance'),
+    
+    
 ]
