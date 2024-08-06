@@ -8,6 +8,7 @@ from .models import *
 import json
 import requests
 from .decorators import validate_user_token
+from django.db import transaction
 
 
 # Create your views here.
@@ -89,8 +90,8 @@ def get_all_categories(request):
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def student_preferences(request):
-    student_email_id = request.headers.get('studentEmail')
-    # student_email_id = request.user_principal_name
+    # student_email_id = request.headers.get('studentEmail')
+    student_email_id = request.user_principal_name
 
     if student_email_id is None:
         return JsonResponse({'message': 'studentEmail is required'}, status=400)
@@ -112,6 +113,7 @@ def student_preferences(request):
                 for pref in student_preferences:
                     category_id = pref.get('id')
                     category_name = pref.get('category_name')
+                    color_code = pref.get('color_code', '')
                     if category_id is None or category_name is None:
                         return JsonResponse({'message': 'Each preference must contain id and category_name'},
                                             status=400)
@@ -124,7 +126,8 @@ def student_preferences(request):
 
                     preferences_list.append({
                         'id': category_id,
-                        'category_name': category_name
+                        'category_name': category_name,
+                        'color_code': color_code
                     })
 
                 studentObj.set_data(preferences_list)
@@ -253,6 +256,7 @@ def get_workshop_details(request, workshop_id):
     except Exception as e:
         return JsonResponse({'message': str(e)}, status=500)
 
+
 @validate_user_token
 @require_http_methods(['GET'])
 def get_all_workshops(request):
@@ -342,15 +346,13 @@ def cancelworkshop(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def register_for_workshop(request):
+    student_email_id = request.user_principal_name
     try:
-        student_email_id = request.user_principal_name
-
-        # To short circuit, uncomment this line
-        # return JsonResponse({'message': 'Registered successfully'}, status=200)
+        # student_email_id = request.headers.get('studentEmail')
 
         # Load JSON payload from request body
         payload = json.loads(request.body)
-        workshop_id = payload.get('workshop_id')
+        workshop_id = payload.get('workshopId')
         status = payload.get('status')  # Can be 'confirmed' or 'waitlisted'
 
         if not student_email_id or not workshop_id or not status:
@@ -360,46 +362,49 @@ def register_for_workshop(request):
         student = get_object_or_404(Student, student_email=student_email_id)
         workshop = get_object_or_404(Workshop, id=workshop_id)
 
-        # Fetch or create the registration object
-        registration, created = Registration.objects.get_or_create(
-            workshop=workshop,
-            defaults={
-                'waitlist': json.dumps([]),
-                'confirmed_registration': json.dumps([]),
-                'total_seats': workshop.total_seats,  # Use actual workshop capacity
-                'seats_filled': 0,
-                'seats_available': workshop.total_seats  # Initial seats available should match total seats
-            }
-        )
+        # Start a transaction to lock the Registration row exclusively
+        with transaction.atomic():
+            # Fetch or create the registration object with locking
+            registration, created = Registration.objects.select_for_update().get_or_create(
+                workshop=workshop,
+                defaults={
+                    'waitlist': json.dumps([]),
+                    'confirmed_registration': json.dumps([]),
+                    'total_seats': workshop.total_seats,  # Use actual workshop capacity
+                    'seats_filled': 0,
+                    'seats_available': workshop.total_seats  # Initial seats available should match total seats
+                }
+            )
 
-        if status == 'confirmed':
-            confirmed_list = registration.get_confirmed_registration()
-            if student_email_id in confirmed_list:
-                return JsonResponse({'message': 'Already registered'}, status=400)
-            if registration.seats_available <= 0:
-                return JsonResponse({'message': 'No seats available'}, status=400)
-            confirmed_list.append(student_email_id)
-            registration.set_confirmed_registration(confirmed_list)
-            registration.seats_filled += 1
-            registration.seats_available -= 1
+            if status == 'confirmed':
+                confirmed_list = registration.get_confirmed_registration()
+                if student_email_id in confirmed_list:
+                    return JsonResponse({'message': 'Already registered'}, status=400)
+                if registration.seats_available <= 0:
+                    return JsonResponse({'message': 'No seats available'}, status=400)
+                confirmed_list.append(student_email_id)
+                registration.set_confirmed_registration(confirmed_list)
+                registration.seats_filled += 1
+                registration.seats_available -= 1
 
-            # Update Student table
-            student.no_of_workshop_scheduled += 1
+                # Update Student table
+                student.no_of_workshop_scheduled += 1
+
+            elif status == 'waitlisted':
+                waitlist = registration.get_waitlist()
+                if student_email_id in waitlist:
+                    return JsonResponse({'message': 'Already waitlisted'}, status=400)
+                waitlist.append(student_email_id)
+                registration.set_waitlist(waitlist)
+                student.no_of_workshop_waitlisted += 1
+
+            else:
+                return JsonResponse({'message': 'Invalid status'}, status=400)
+
+            # Save the registration and student within the transaction
+            registration.save()
             student.save()
 
-        elif status == 'waitlisted':
-            waitlist = registration.get_waitlist()
-            if student_email_id in waitlist:
-                return JsonResponse({'message': 'Already waitlisted'}, status=400)
-            waitlist.append(student_email_id)
-            registration.set_waitlist(waitlist)
-            student.no_of_workshop_waitlisted += 1
-            student.save()
-
-        else:
-            return JsonResponse({'message': 'Invalid status'}, status=400)
-
-        registration.save()
         return JsonResponse({'message': 'Registered successfully'}, status=200)
 
     except json.JSONDecodeError:
@@ -408,11 +413,8 @@ def register_for_workshop(request):
         return JsonResponse({'message': 'Student not found'}, status=404)
     except Workshop.DoesNotExist:
         return JsonResponse({'message': 'Workshop not found'}, status=404)
-    except Registration.DoesNotExist:
-        return JsonResponse({'message': 'Registration not found'}, status=404)
     except Exception as e:
         return JsonResponse({'message': str(e)}, status=500)
-
 
 
 @validate_user_token
@@ -424,5 +426,4 @@ def attendance(request):
     qrvalue = payload.get('qrvalue')
     print(qrvalue)
     return JsonResponse({'message': 'Success'}, status=200)
-
 
