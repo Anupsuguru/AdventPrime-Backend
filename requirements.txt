@@ -4,3 +4,4 @@ django
 mssql-django
 requests
 django-cors-headers
+qrcode[pil]
