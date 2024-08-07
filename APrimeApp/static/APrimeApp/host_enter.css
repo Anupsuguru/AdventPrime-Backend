@@ -1,0 +1,58 @@
+.cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    align-items: center;
+    gap: 10px;
+    padding: 16px;
+}
+
+.title {
+    align-items: center;
+    text-align: center;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: white;
+}
+
+.card {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    width: 400px;
+    height: 200px;
+    padding: 10px;
+    background: #1f1f1f;
+    border-radius: 20px;
+    color: white;
+}
+
+a {
+    text-decoration: none;
+}
+
+.search-container {
+    margin-top: 10px;
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    flex-direction: column;
+    margin-left: 16px;
+}
+
+.search-form {
+    width: 95%;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    height: 30px;
+    border-color: darkslategrey;
+    font-size: 18px;
+    font-weight: normal;
+    padding-left: 16px;
+}
+
+
+.workshop-conducted {
+    color: darkgrey;
+}
+
+.workshop-category {
+    color: darkgrey;
+}

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+    <meta charset="UTF-8">
+    <title>{% block Title %} {% endblock %}</title>
+</head>
+<link rel="stylesheet" type="text/css" href="{% static 'APrimeApp/base.css' %}">
+<body>
+    <div class="nav">
+        <img src="{% static 'APrimeApp/Logo.png' %}" alt="Logo">
+    </div>
+    <div class="content">
+        {% block Content %}
+        {% endblock %}
+    </div>
+</body>
+</html>

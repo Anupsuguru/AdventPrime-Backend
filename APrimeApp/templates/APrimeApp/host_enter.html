@@ -1,0 +1,47 @@
+{% extends 'APrimeApp/base.html' %}
+{% load static %}
+
+
+{% block Title %}
+    Host - Workshops
+{% endblock %}
+
+{% block Content %}
+    <link rel="stylesheet" type="text/css" href="{% static 'APrimeApp/host_enter.css' %}">
+
+    <div class="search-container">
+        <h1 class="title">Search Workshops</h1>
+        <form id="searchForm" method="GET" action="{% url 'APrimeApp:host_home' %}">
+            {{ form.query }}
+        </form>
+    </div>
+    <div class="cards-container">
+        {% for workshop in workshops %}
+            <a href="{% url 'APrimeApp:host_workshop_QR' workshop.id %}">
+                <div class="card" data-href-template="">
+                    <h3 class="workshop-title">{{ workshop.title }}</h3>
+                    <h4 class="workshop-conducted">{{ workshop.host }}</h4>
+                    <h4 class="workshop-category">{{ workshop.category }}</h4>
+                    <h4 class="workshop-time">{{ workshop.time }}</h4>
+                </div>
+            </a>
+
+        {% endfor %}
+        <div class="flex-grow"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        $(document).ready(function($) {
+            $(".result-item").click(function() {
+                window.location = $(this).data("href");
+            });
+            $(".search-input").on('keypress', function(e) {
+                if (e.which == 13) {  // Detect Enter key press
+                    $("#searchForm").submit();  // Submit the form
+                    return false;  // Prevent the default action
+                }
+            });
+        });
+    </script>
+{% endblock %}

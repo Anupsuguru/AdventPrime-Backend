@@ -85,7 +85,7 @@ class Registration(BaseModel):
     seats_filled = models.IntegerField()
     seats_available = models.IntegerField()
     workshop = models.ForeignKey(Workshop, on_delete=models.CASCADE)
-
+    attendance = models.TextField(blank=True, null=True)
 
     def get_waitlist(self):
         return json.loads(self.waitlist)
@@ -98,6 +98,12 @@ class Registration(BaseModel):
 
     def set_confirmed_registration(self, value):
         self.confirmed_registration = json.dumps(value)
+
+    def get_attendance(self):
+        return json.loads(self.attendance)
+
+    def set_attendance(self, value):
+        self.attendance = json.dumps(value)
 
     def __str__(self):
         return self.id

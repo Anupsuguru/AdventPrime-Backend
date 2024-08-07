@@ -1,3 +1,5 @@
+import base64
+
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -8,8 +10,14 @@ from .models import *
 import json
 import requests
 from .decorators import validate_user_token
+from django.shortcuts import render
+from .forms import SearchForm
 from django.db import transaction
+import qrcode
+from io import BytesIO
 
+
+global_id = 0
 
 # Create your views here.
 @validate_user_token
@@ -164,6 +172,55 @@ def student_preferences(request):
         return JsonResponse({'message': 'Method not allowed'}, status=405)
 
 
+def host_home(request):
+    workshops = Workshop.objects.all()
+    host_centric_workshops = [HostCentricWorkshopDetails(workshop) for workshop in workshops]
+    form = SearchForm(request.GET or None)
+    if form.is_valid():
+        query = form.cleaned_data['query']
+        workshops = Workshop.objects.filter(workshop_name__icontains=query)
+        host_centric_workshops = [HostCentricWorkshopDetails(workshop) for workshop in workshops]
+    return render(request, 'APrimeApp/host_enter.html', {'workshops': host_centric_workshops, 'form': form})
+
+
+def host_workshop_QR(request, workshop_id: int):
+    workshop = Workshop.objects.get(id=workshop_id)
+    # Data to encode
+    data = f"{workshop_id}"
+
+    # Create QR code instance
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+
+    # Add data to the QR code
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    # Create an image from the QR code instance
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    img.save(buffer, 'PNG')
+    img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    global global_id
+    global_id = workshop_id
+    host_centric_workshop = HostCentricWorkshopDetails(workshop)
+    return render(request, 'APrimeApp/host_QR.html', {'workshop': host_centric_workshop, 'img': img_str})
+
+
+class HostCentricWorkshopDetails:
+    def __init__(self, workshop):
+        self.id = workshop.id
+        self.title = workshop.workshop_name
+        self.description = workshop.description
+        # self.location = workshop.location
+        self.host = workshop.conducted_by
+        self.category = workshop.category
+
+
 @validate_user_token
 @require_http_methods(["GET"])
 def get_registered_workshops(request):
@@ -291,6 +348,7 @@ def get_all_workshops(request):
 
     except Exception as e:
         return JsonResponse({'message': str(e)}, status=500)
+
 
 @validate_user_token
 @require_http_methods(['GET'])
@@ -421,9 +479,18 @@ def register_for_workshop(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def attendance(request):
-    print(request.user_principal_name)
+    student_email_id = request.user_principal_name
     payload = json.loads(request.body)
-    qrvalue = payload.get('qrvalue')
-    print(qrvalue)
+    workshop_id = global_id
+    # print(qrvalue)
+    student = get_object_or_404(Student, student_email=student_email_id)
+    workshop = get_object_or_404(Workshop, id=workshop_id)
+    registration, created = Registration.objects.select_for_update().get(
+        workshop=workshop,
+    )
+    attendance_data = registration.get_attendance()
+    attendance_data.append(student_email_id)
+    registration.set_attendance(attendance_data)
+    registration.save()
     return JsonResponse({'message': 'Success'}, status=200)
 
