@@ -3,6 +3,8 @@ import base64
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db.models import F, Window
+from django.db.models.functions import RowNumber
 
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -350,12 +352,19 @@ def get_all_workshops(request):
         return JsonResponse({'message': str(e)}, status=500)
 
 
-@validate_user_token
+# @validate_user_token
 @require_http_methods(['GET'])
 def get_three_workshops(request):
     try:
         # Fetch the workshop object by ID
-        workshop = Workshop.objects.all()[:3]
+        # workshop = Workshop.objects.filter()
+        workshop = Workshop.objects.annotate(
+            row_number=Window(
+                expression=RowNumber(),
+                order_by=F('workshop_date').desc()
+            )
+        ).filter(row_number__lte=3)
+
         workshop_details: list[dict] = list()
 
         for workshop in workshop:
