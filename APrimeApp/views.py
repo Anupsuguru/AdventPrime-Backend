@@ -405,13 +405,37 @@ def get_three_workshops(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def cancelworkshop(request):
-    payload = json.loads(request.body)
-    workshop_id = payload.get('workshop_id')
 
-    # TODO: do something with this instead of printing
-    print(request.user_principal_name)
-    print(workshop_id)
-    return JsonResponse({'message': 'Success'}, status=400)
+    #
+    # # TODO: do something with this instead of printing
+    # print(request.user_principal_name)
+    # print(workshop_id)
+    # return JsonResponse({'message': 'Success'}, status=400)
+    try:
+        student_email_id = request.user_principal_name
+        payload = json.loads(request.body)
+        workshop_id = payload.get('workshop_id')
+
+        if not student_email_id:
+            return JsonResponse({'message': 'studentEmail is required'}, status=400)
+
+        # Fetch student object
+        student = get_object_or_404(Student, student_email=student_email_id)
+
+        # Fetch registrations for the student
+        registrations = Registration.objects.get(
+            confirmed_registration__contains=student_email_id,
+            workshop__id=workshop_id
+        )
+        registrations.confirmed_registration.replace(student_email_id, "")
+        registrations.seats_available += 1
+        registrations.save()
+
+    except Student.DoesNotExist:
+        return JsonResponse({'message': 'Student not found'}, status=404)
+
+    except Exception as e:
+        return JsonResponse({'message': str(e)}, status=500)
 
 
 @validate_user_token
