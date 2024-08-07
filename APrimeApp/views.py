@@ -1,4 +1,9 @@
+import base64
+
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .models import *
@@ -7,15 +12,21 @@ import requests
 from .decorators import validate_user_token
 from django.shortcuts import render
 from .forms import SearchForm
+from django.db import transaction
+import qrcode
+from io import BytesIO
 
+
+global_id = 0
 
 # Create your views here.
 @validate_user_token
 def index(request):
     try:
         # Extract student email from headers
-        student_email_id = request.headers.get('studentEmail')
-        # student_email_id = request.user_principal_name
+        # student_email_id = request.headers.get('studentEmail')
+        student_email_id = request.user_principal_name
+        # print(student_email_id)
 
         # Extract Student Details from Student Model
         studentObj = Student.objects.get(student_email=student_email_id)
@@ -87,8 +98,8 @@ def get_all_categories(request):
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def student_preferences(request):
-    student_email_id = request.headers.get('studentEmail')
-    # student_email_id = request.user_principal_name
+    # student_email_id = request.headers.get('studentEmail')
+    student_email_id = request.user_principal_name
 
     if student_email_id is None:
         return JsonResponse({'message': 'studentEmail is required'}, status=400)
@@ -110,6 +121,7 @@ def student_preferences(request):
                 for pref in student_preferences:
                     category_id = pref.get('id')
                     category_name = pref.get('category_name')
+                    color_code = pref.get('color_code', '')
                     if category_id is None or category_name is None:
                         return JsonResponse({'message': 'Each preference must contain id and category_name'},
                                             status=400)
@@ -122,7 +134,8 @@ def student_preferences(request):
 
                     preferences_list.append({
                         'id': category_id,
-                        'category_name': category_name
+                        'category_name': category_name,
+                        'color_code': color_code
                     })
 
                 studentObj.set_data(preferences_list)
@@ -172,14 +185,311 @@ def host_home(request):
 
 def host_workshop_QR(request, workshop_id: int):
     workshop = Workshop.objects.get(id=workshop_id)
+    # Data to encode
+    data = f"{workshop_id}"
+
+    # Create QR code instance
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+
+    # Add data to the QR code
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    # Create an image from the QR code instance
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    img.save(buffer, 'PNG')
+    img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    global global_id
+    global_id = workshop_id
     host_centric_workshop = HostCentricWorkshopDetails(workshop)
-    return render(request, 'APrimeApp/host_QR.html', {'workshop': host_centric_workshop})
+    return render(request, 'APrimeApp/host_QR.html', {'workshop': host_centric_workshop, 'img': img_str})
 
 
 class HostCentricWorkshopDetails:
     def __init__(self, workshop):
+        self.id = workshop.id
         self.title = workshop.workshop_name
         self.description = workshop.description
         # self.location = workshop.location
         self.host = workshop.conducted_by
         self.category = workshop.category
+
+
+@validate_user_token
+@require_http_methods(["GET"])
+def get_registered_workshops(request):
+    student_email_id = request.user_principal_name
+
+    try:
+        # student_email_id = request.headers.get('studentEmail')
+
+        if not student_email_id:
+            return JsonResponse({'message': 'studentEmail is required'}, status=400)
+
+        # Fetch student object
+        student = get_object_or_404(Student, student_email=student_email_id)
+
+        # Fetch registrations for the student
+        registrations = Registration.objects.filter(
+            confirmed_registration__contains=student_email_id
+        )
+
+        # Get current date and time
+        current_time = timezone.now()
+
+        # Filter and sort upcoming workshops
+        upcoming_workshops = [
+            {
+                'id': str(registration.workshop.id),
+                'workshop_name': registration.workshop.workshop_name,
+                'conducted_by': registration.workshop.conducted_by,
+                'workshop_date': registration.workshop.workshop_date.isoformat(),
+                'workshop_start_time': registration.workshop.workshop_start_time.isoformat(),
+                'workshop_end_time': registration.workshop.workshop_end_time.isoformat(),
+                'workshop_location': registration.workshop.workshop_location,
+                'resource': registration.workshop.resource,
+                'category': registration.workshop.category.category_name,
+                'conducted_by_department': registration.workshop.conducted_by_department_id.department_name,
+                'description': registration.workshop.description,
+                'time': f"{registration.workshop.workshop_start_time.strftime('%H:%M')} - {registration.workshop.workshop_end_time.strftime('%H:%M')}",
+                'day': registration.workshop.workshop_date.strftime('%A'),
+                'datenum': registration.workshop.workshop_date.strftime('%d'),
+                'datemo': registration.workshop.workshop_date.strftime('%B %Y')
+            }
+            for registration in registrations
+            # if registration.workshop.workshop_date >= current_time.date()
+        ]
+
+        # Sort workshops by date and time
+        upcoming_workshops.sort(key=lambda x: (x['workshop_date'], x['workshop_start_time']))
+
+        return JsonResponse({
+            'message': 'Success',
+            'content': upcoming_workshops
+        }, status=200)
+
+    except Student.DoesNotExist:
+        return JsonResponse({'message': 'Student not found'}, status=404)
+
+    except Exception as e:
+        return JsonResponse({'message': str(e)}, status=500)
+
+
+@validate_user_token
+@require_http_methods(["GET"])
+def get_workshop_details(request, workshop_id):
+    try:
+        # Fetch the workshop object by ID
+        workshop = Workshop.objects.get(id=workshop_id)
+
+        # Serialize the workshop object
+        workshop_details = {
+            'id': str(workshop.id),
+            'workshop_name': workshop.workshop_name,
+            'conducted_by': workshop.conducted_by,
+            'conducted_by_department': workshop.conducted_by_department_id.department_name,
+            'workshop_date': workshop.workshop_date.isoformat(),
+            'workshop_start_time': workshop.workshop_start_time.isoformat(),
+            'workshop_end_time': workshop.workshop_end_time.isoformat(),
+            'workshop_location': workshop.workshop_location,
+            'resource': workshop.resource,
+            'category': workshop.category.category_name
+        }
+
+        return JsonResponse({
+            'message': 'Success',
+            'content': workshop_details
+        }, status=200)
+
+    except Workshop.DoesNotExist:
+        return JsonResponse({'message': 'Workshop not found'}, status=404)
+
+    except Exception as e:
+        return JsonResponse({'message': str(e)}, status=500)
+
+
+@validate_user_token
+@require_http_methods(['GET'])
+def get_all_workshops(request):
+    try:
+        # Fetch the workshop object by ID
+        workshop = Workshop.objects.all()
+        workshop_details: list[dict] = list()
+
+        for workshop in workshop:
+            workshop_details.append({
+                'id': str(workshop.id),
+                'workshop_name': workshop.workshop_name,
+                'conducted_by': workshop.conducted_by,
+                'workshop_date': workshop.workshop_date.isoformat(),
+                'workshop_start_time': workshop.workshop_start_time.isoformat(),
+                'workshop_end_time': workshop.workshop_end_time.isoformat(),
+                'workshop_location': workshop.workshop_location,
+                'resource': workshop.resource,
+                'category': workshop.category.category_name,
+                'conducted_by_department': workshop.conducted_by_department_id.department_name,
+                'description': workshop.description,
+            })
+        # Serialize the workshop object
+
+        return JsonResponse({
+            'message': 'Success',
+            'content': workshop_details
+        }, status=200)
+
+    except Workshop.DoesNotExist:
+        return JsonResponse({'message': 'Workshop not found'}, status=404)
+
+    except Exception as e:
+        return JsonResponse({'message': str(e)}, status=500)
+
+@validate_user_token
+@require_http_methods(['GET'])
+def get_three_workshops(request):
+    try:
+        # Fetch the workshop object by ID
+        workshop = Workshop.objects.all()[:3]
+        workshop_details: list[dict] = list()
+
+        for workshop in workshop:
+            workshop_details.append({
+                'id': str(workshop.id),
+                'workshop_name': workshop.workshop_name,
+                'conducted_by': workshop.conducted_by,
+                'workshop_date': workshop.workshop_date.isoformat(),
+                'workshop_start_time': workshop.workshop_start_time.isoformat(),
+                'workshop_end_time': workshop.workshop_end_time.isoformat(),
+                'workshop_location': workshop.workshop_location,
+                'resource': workshop.resource,
+                'category': workshop.category.category_name,
+                'conducted_by_department': workshop.conducted_by_department_id.department_name,
+                'description': workshop.description,
+            })
+        # Serialize the workshop object
+
+        return JsonResponse({
+            'message': 'Success',
+            'content': workshop_details
+        }, status=200)
+
+    except Workshop.DoesNotExist:
+        return JsonResponse({'message': 'Workshop not found'}, status=404)
+
+    except Exception as e:
+        return JsonResponse({'message': str(e)}, status=500)
+
+
+@validate_user_token
+@csrf_exempt
+@require_http_methods(["POST"])
+def cancelworkshop(request):
+
+    payload = json.loads(request.body)
+    workshop_id = payload.get('workshop_id')
+
+    # TODO: do something with this instead of printing
+    print(request.user_principal_name)
+    print(workshop_id)
+    return JsonResponse({'message': 'Success'}, status=400)
+
+
+@validate_user_token
+@csrf_exempt
+@require_http_methods(["POST"])
+def register_for_workshop(request):
+    student_email_id = request.user_principal_name
+    try:
+        # student_email_id = request.headers.get('studentEmail')
+
+        # Load JSON payload from request body
+        payload = json.loads(request.body)
+        workshop_id = payload.get('workshopId')
+        status = payload.get('status')  # Can be 'confirmed' or 'waitlisted'
+
+        if not student_email_id or not workshop_id or not status:
+            return JsonResponse({'message': 'studentEmail, workshopId, and status are required'}, status=400)
+
+        # Fetch student and workshop objects
+        student = get_object_or_404(Student, student_email=student_email_id)
+        workshop = get_object_or_404(Workshop, id=workshop_id)
+
+        # Start a transaction to lock the Registration row exclusively
+        with transaction.atomic():
+            # Fetch or create the registration object with locking
+            registration, created = Registration.objects.select_for_update().get_or_create(
+                workshop=workshop,
+                defaults={
+                    'waitlist': json.dumps([]),
+                    'confirmed_registration': json.dumps([]),
+                    'total_seats': workshop.total_seats,  # Use actual workshop capacity
+                    'seats_filled': 0,
+                    'seats_available': workshop.total_seats  # Initial seats available should match total seats
+                }
+            )
+
+            if status == 'confirmed':
+                confirmed_list = registration.get_confirmed_registration()
+                if student_email_id in confirmed_list:
+                    return JsonResponse({'message': 'Already registered'}, status=400)
+                if registration.seats_available <= 0:
+                    return JsonResponse({'message': 'No seats available'}, status=400)
+                confirmed_list.append(student_email_id)
+                registration.set_confirmed_registration(confirmed_list)
+                registration.seats_filled += 1
+                registration.seats_available -= 1
+
+                # Update Student table
+                student.no_of_workshop_scheduled += 1
+
+            elif status == 'waitlisted':
+                waitlist = registration.get_waitlist()
+                if student_email_id in waitlist:
+                    return JsonResponse({'message': 'Already waitlisted'}, status=400)
+                waitlist.append(student_email_id)
+                registration.set_waitlist(waitlist)
+                student.no_of_workshop_waitlisted += 1
+
+            else:
+                return JsonResponse({'message': 'Invalid status'}, status=400)
+
+            # Save the registration and student within the transaction
+            registration.save()
+            student.save()
+
+        return JsonResponse({'message': 'Registered successfully'}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'message': 'Invalid JSON payload'}, status=400)
+    except Student.DoesNotExist:
+        return JsonResponse({'message': 'Student not found'}, status=404)
+    except Workshop.DoesNotExist:
+        return JsonResponse({'message': 'Workshop not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'message': str(e)}, status=500)
+
+
+@validate_user_token
+@csrf_exempt
+@require_http_methods(["POST"])
+def attendance(request):
+    student_email_id = request.user_principal_name
+    payload = json.loads(request.body)
+    workshop_id = global_id
+    # print(qrvalue)
+    student = get_object_or_404(Student, student_email=student_email_id)
+    workshop = get_object_or_404(Workshop, id=workshop_id)
+    registration, created = Registration.objects.select_for_update().get(
+        workshop=workshop,
+    )
+    attendance_data = registration.get_attendance()
+    attendance_data.append(student_email_id)
+    registration.set_attendance(attendance_data)
+    registration.save()
+    return JsonResponse({'message': 'Success'}, status=200)
+

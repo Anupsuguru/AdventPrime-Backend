@@ -1,10 +1,17 @@
 .cards-container {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: start;
+    justify-content: space-evenly;
+    align-items: center;
     gap: 10px;
     padding: 16px;
+}
+
+.title {
+    align-items: center;
+    text-align: center;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: white;
 }
 
 .card {
@@ -17,6 +24,9 @@
     color: white;
 }
 
+a {
+    text-decoration: none;
+}
 
 .search-container {
     margin-top: 10px;
@@ -36,4 +46,13 @@
     font-size: 18px;
     font-weight: normal;
     padding-left: 16px;
+}
+
+
+.workshop-conducted {
+    color: darkgrey;
+}
+
+.workshop-category {
+    color: darkgrey;
 }
