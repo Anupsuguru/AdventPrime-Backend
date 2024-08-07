@@ -2,3 +2,4 @@
 /.idea
 AdventPrime/__pycache__
 APrimeApp/__pycache__
+*/*/*.pyc
