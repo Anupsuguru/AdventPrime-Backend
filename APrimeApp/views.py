@@ -316,7 +316,7 @@ def get_workshop_details(request, workshop_id):
         return JsonResponse({'message': str(e)}, status=500)
 
 
-@validate_user_token
+# @validate_user_token
 @require_http_methods(['GET'])
 def get_all_workshops(request):
     try:
@@ -327,7 +327,7 @@ def get_all_workshops(request):
                 expression=RowNumber(),
                 order_by=F('workshop_date').desc()
             )
-        ).filter(row_number__lte=10)
+        ).filter(row_number__lte=6)
         workshop_details: list[dict] = list()
 
         for workshop in workshop:
