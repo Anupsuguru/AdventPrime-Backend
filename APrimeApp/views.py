@@ -5,6 +5,8 @@ from .models import *
 import json
 import requests
 from .decorators import validate_user_token
+from django.shortcuts import render
+from .forms import SearchForm
 
 
 # Create your views here.
@@ -155,3 +157,29 @@ def student_preferences(request):
 
     else:
         return JsonResponse({'message': 'Method not allowed'}, status=405)
+
+
+def host_home(request):
+    workshops = Workshop.objects.all()
+    host_centric_workshops = [HostCentricWorkshopDetails(workshop) for workshop in workshops]
+    form = SearchForm(request.GET or None)
+    if form.is_valid():
+        query = form.cleaned_data['query']
+        workshops = Workshop.objects.filter(workshop_name__icontains=query)
+        host_centric_workshops = [HostCentricWorkshopDetails(workshop) for workshop in workshops]
+    return render(request, 'APrimeApp/host_enter.html', {'workshops': host_centric_workshops, 'form': form})
+
+
+def host_workshop_QR(request, workshop_id: int):
+    workshop = Workshop.objects.get(id=workshop_id)
+    host_centric_workshop = HostCentricWorkshopDetails(workshop)
+    return render(request, 'APrimeApp/host_QR.html', {'workshop': host_centric_workshop})
+
+
+class HostCentricWorkshopDetails:
+    def __init__(self, workshop):
+        self.title = workshop.workshop_name
+        self.description = workshop.description
+        # self.location = workshop.location
+        self.host = workshop.conducted_by
+        self.category = workshop.category

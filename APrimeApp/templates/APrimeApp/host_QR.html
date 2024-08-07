@@ -1,0 +1,11 @@
+{% extends 'APrimeApp/base.html' %}
+
+{% block Content %}
+    <div class="main-container">
+        <div class="title">{{ workshop.title }}</div>
+        <div class="subtitle">{{ workshop.host }}</div>
+        <div class="mt-3">
+            <span class="tech-pill tech1">{{ workshop.category }}</span>
+        </div>
+    </div>
+{% endblock %}

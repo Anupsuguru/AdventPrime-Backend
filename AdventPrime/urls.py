@@ -20,5 +20,5 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     # path('', include('APrimeApp.urls'))
-    path('', include('APrimeApp.urls_without_token_val'))
+    path('', include('APrimeApp.urls'))
 ]

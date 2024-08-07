@@ -186,13 +186,15 @@ def get_workshop_details(request, workshop_id):
 
 
 @require_http_methods(['GET'])
-def get_all_workshops(request):
+def get_all_workshops(request, preference_id: int = -1):
     try:
-        # Fetch the workshop object by ID
-        workshop = Workshop.objects.all()
+        if preference_id >= 0:
+            workshops = Workshop.objects.filter(id=preference_id)
+        else:
+            workshops = Workshop.objects.all()
         workshop_details: list[dict] = list()
 
-        for workshop in workshop:
+        for workshop in workshops:
             workshop_details.append({
                 'id': str(workshop.id),
                 'workshop_name': workshop.workshop_name,
@@ -345,3 +347,28 @@ def upcoming_registered_workshops(request):
     except Exception as e:
         return JsonResponse({'message': str(e)}, status=500)
 
+
+def cancel_workshop(request, workshop_id:int):
+    try:
+        student_email_id = request.headers.get('studentEmail')
+
+        if not student_email_id:
+            return JsonResponse({'message': 'studentEmail is required'}, status=400)
+
+        # Fetch student object
+        student = get_object_or_404(Student, student_email=student_email_id)
+
+        # Fetch registrations for the student
+        registrations = Registration.objects.get(
+            confirmed_registration__contains=student_email_id,
+            workshop__id=workshop_id
+        )
+        registrations.confirmed_registration.replace(student_email_id, "")
+        registrations.seats_available += 1
+        registrations.save()
+
+    except Student.DoesNotExist:
+        return JsonResponse({'message': 'Student not found'}, status=404)
+
+    except Exception as e:
+        return JsonResponse({'message': str(e)}, status=500)
