@@ -18,8 +18,8 @@ from django.db import transaction
 import qrcode
 from io import BytesIO
 
-
 global_id = 0
+
 
 # Create your views here.
 @validate_user_token
@@ -321,7 +321,13 @@ def get_workshop_details(request, workshop_id):
 def get_all_workshops(request):
     try:
         # Fetch the workshop object by ID
-        workshop = Workshop.objects.all()
+        # workshop = Workshop.objects.all()
+        workshop = Workshop.objects.annotate(
+            row_number=Window(
+                expression=RowNumber(),
+                order_by=F('workshop_date').desc()
+            )
+        ).filter(row_number__lte=10)
         workshop_details: list[dict] = list()
 
         for workshop in workshop:
@@ -399,7 +405,6 @@ def get_three_workshops(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def cancelworkshop(request):
-
     payload = json.loads(request.body)
     workshop_id = payload.get('workshop_id')
 
@@ -502,4 +507,3 @@ def attendance(request):
     registration.set_attendance(attendance_data)
     registration.save()
     return JsonResponse({'message': 'Success'}, status=200)
-
